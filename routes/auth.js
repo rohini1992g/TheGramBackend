@@ -5,54 +5,106 @@ const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
 
 //Register
+// router.post("/register", async (req, res) => {
+//   try {
+//     //generate bcrypt password
+//     const salt = await bcrypt.genSalt(10);
+//     const hashedpassword = await bcrypt.hash(req.body.password, salt);
+
+//     //create new user
+
+//     const newUserName = req.body.username.toLowerCase().replace(/ /g, "");
+
+//     const user_name = await User.findOne({ username: newUserName });
+
+//     if (user_name) {
+//       return res.status(400).json({ msg: "This username is already taken." });
+//     }
+//     const user_email = await User.findOne({ email });
+
+//     if (user_email) {
+//       return res.status(400).json({ msg: "This email is already registered." });
+//     }
+
+//     const newuser = new User({
+//       username: req.body.username,
+//       email: req.body.email,
+//       password: req.body.password,
+//     });
+//     console.log(newuser);
+//     const access_token = createAccessToken({ id: newuser._id });
+//     const refresh_token = createRefreshToken({ id: newuser._id });
+
+//     res.cookie("refreshtoken", refresh_token, {
+//       httpOnly: true,
+//       path: "/api/refresh_token",
+//       maxAge: 30 * 24 * 60 * 60 * 1000, //validity of 30 days
+//     });
+
+//     res.json({
+//       msg: "Registered Successfully!",
+//       access_token,
+//       user: {
+//         ...newuser._doc,
+//         password: "",
+//       },
+//     });
+//     //save user and respond
+//     await newuser.save();
+
+//     return res.status(200).json({ msg: "registered" });
+//   } catch (err) {
+//     return res.status(500).json(err);
+//   }
+// });
+
 router.post("/register", async (req, res) => {
   try {
-    //generate bcrypt password
+    // Generate bcrypt password
     const salt = await bcrypt.genSalt(10);
     const hashedpassword = await bcrypt.hash(req.body.password, salt);
-
-    //create new user
-
-    let newUserName = user_name.toLowerCase().replace(/ /g, "");
+    // Check if username is already taken
+    const newUserName = req.body.username.toLowerCase().replace(/ /g, "");
     const user_name = await User.findOne({ username: newUserName });
     if (user_name) {
       return res.status(400).json({ msg: "This username is already taken." });
     }
-    const user_email = await User.findOne({ email });
+    // Check if email is already registered
+    const user_email = await User.findOne({ email: req.body.email });
     if (user_email) {
       return res.status(400).json({ msg: "This email is already registered." });
     }
+    // Create new user
     const newuser = new User({
-      username: req.body.username,
+      username: newUserName,
       email: req.body.email,
-      password: hashedpassword,
+      password: req.body.password,
     });
-
+    // Save user to database
+    await newuser.save();
+    // Generate tokens
     const access_token = createAccessToken({ id: newuser._id });
     const refresh_token = createRefreshToken({ id: newuser._id });
-
+    // Set refresh token in cookie
     res.cookie("refreshtoken", refresh_token, {
       httpOnly: true,
       path: "/api/refresh_token",
-      maxAge: 30 * 24 * 60 * 60 * 1000, //validity of 30 days
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
-
+    // Send response
     res.json({
       msg: "Registered Successfully!",
       access_token,
       user: {
         ...newuser._doc,
-        password: "",
+        password: "", // Do not include the password in the response
       },
     });
-    //save user and respond
-    await newuser.save();
-
-    return res.status(200).json({ msg: "registered" });
   } catch (err) {
-    return res.status(500).json(err);
+    return res.status(500).json({ error: err.message });
   }
 });
+
 //Login page
 router.post("/login", async (req, res) => {
   try {
