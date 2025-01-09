@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import getDataUri from "../utils/datauri.js";
 import cloudinary from "../utils/cloudinary.js";
 import multer from "multer";
+import { Post } from "../models/Post.js";
 //user registration
 export const register = async (req, res) => {
   try {
@@ -40,6 +41,7 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(email, password);
     if (!email || !password) {
       return res.status(401).json({
         message: "Something is missing, please check!",
@@ -104,6 +106,52 @@ export const login = async (req, res) => {
     console.log(error);
   }
 };
+//forget Password
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email });
+    if (!user) {
+      return res.status(401).json({
+        message: "Incorrect email",
+        success: false,
+      });
+    }
+    const forgettoken = await jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET_KEY,
+      {
+        expiresIn: "1d",
+      }
+    );
+
+    var transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "rohini.gondane123@gmail.com",
+        pass: "cajp xxgc iqxk lomw",
+      },
+    });
+
+    var mailOptions = {
+      from: "rohini.gondane123@gmail.com",
+      to: email,
+      subject: "Reset Password",
+      text: `http://localhost:5173/resetPassword/${user._id}/${forgettoken}`,
+    };
+
+    transporter.sendMail(mailOptions, function (error, info) {
+      if (error) {
+        res.status(400).json("Error Sending Mail");
+      } else {
+        res.status(200).json({ status: true, message: "Email sent" });
+      }
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 //logout
 export const logout = async (_, res) => {
   try {
@@ -118,16 +166,31 @@ export const logout = async (_, res) => {
 
 //getProfile
 
+//
 export const getProfile = async (req, res) => {
   try {
-    const userId = req.params.id;
-    const user = await User.findById(userId).select("-password");
+    const { id: userId } = req.params;
+    console.log(userId);
+    const user = await User.findById(userId).populate({
+      path: "posts",
+      options: { sort: { createdAt: -1 } }, // Sorting posts by creation date in descending order
+    });
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+        success: false,
+      });
+    }
     return res.status(200).json({
       user,
       success: true,
     });
   } catch (err) {
-    console.log(err);
+    console.error("Error fetching profile:", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
   }
 };
 
@@ -137,12 +200,11 @@ export const editProfile = async (req, res) => {
     const userId = req.id;
     const { bio, gender } = req.body;
     const profilePicture = req.file;
-    console.log(req.file, "profile pic");
     let cloudResponse;
+    // console.log(req.file, "profile pic");
 
     if (profilePicture) {
       const fileUri = getDataUri(profilePicture);
-      console.log(fileUri);
       cloudResponse = await cloudinary.uploader.upload(fileUri);
     }
 
@@ -180,7 +242,7 @@ export const getSuggestedUsers = async (req, res) => {
     }
     return res.status(200).json({
       success: true,
-      suggestedUsers,
+      users: suggestedUsers,
     });
   } catch (err) {
     console.log(err);
@@ -241,5 +303,26 @@ export const followOrUnfollow = async (req, res) => {
     }
   } catch (err) {
     console.log(err);
+  }
+};
+
+//search by name
+export const searchName = async (req, res) => {
+  try {
+    const { keyword } = req.query;
+    if (!keyword || keyword.trim() === "") {
+      return res
+        .status(400)
+        .json({ message: "Keyword is required and cannot be empty" });
+    }
+    // Use MongoDB's regex for a case-insensitive search
+    const users = await User.find({
+      username: { $regex: keyword, $options: "i" },
+    }).select("username"); // Select only the username field
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };

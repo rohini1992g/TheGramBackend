@@ -7,6 +7,7 @@ import {
   login,
   logout,
   register,
+  searchName,
 } from "../controllers/user.js";
 import upload from "../middleware/multer.js";
 import isAuth from "../middleware/isAuth.js";
@@ -18,15 +19,17 @@ router.route("/login").post(login);
 router.route("/logout").get(logout);
 router.route("/:id/profile").get(isAuth, getProfile);
 
-// router
-//   .route("/profile/edit")
-//   .post(isAuth, upload.single("profilePicture"), editProfile);
 router
   .route("/profile/edit")
-  .post(isAuth, upload.single("profilePicture"), (req, res) => {
-    console.log(req.file);
-    res.send("Ffile ");
-  });
+  .post(isAuth, upload.single("profilePicture"), editProfile);
+// router
+//   .route("/profile/edit")
+//   .post(isAuth, upload.single("profilePicture"), (req, res) => {
+//     console.log(req.file);
+//     res.send("Ffile ");
+//   });
 router.route("/suggested").get(isAuth, getSuggestedUsers);
 router.route("/followorunfollow/:id").post(isAuth, followOrUnfollow);
+router.route("/search").get(searchName);
+
 export default router;
