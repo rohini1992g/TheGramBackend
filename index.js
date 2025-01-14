@@ -5,10 +5,9 @@ import dotenv from "dotenv";
 import connectDB from "./utils/db.js";
 import userRoute from "./router/user.router.js";
 import postRoute from "./router/post.router.js";
-
+import messageRoute from "./router/message.router.js";
+import { app, server } from "./socket/socket.js";
 dotenv.config();
-
-const app = express();
 
 const PORT = process.env.PORT || 3000;
 
@@ -25,8 +24,9 @@ app.use(cors(corsOptions));
 //api here
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/post", postRoute);
+app.use("/api/v1/message", messageRoute);
 
-app.listen(8000, () => {
+server.listen(8000, () => {
   connectDB();
   console.log("backend server is running");
 });

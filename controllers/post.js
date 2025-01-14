@@ -6,11 +6,11 @@ import { Comment } from "../models/Comment.js";
 
 //create new post
 export const addNewPost = async (req, res) => {
-  console.log("hiii");
   try {
     const { caption } = req.body;
     const image = req.file;
     const authorId = req.id;
+    const { location } = req.body;
 
     if (!image) return res.status(400).json({ massage: "image required" });
     const optimizeImageBuffer = await sharp(image.buffer)
@@ -31,6 +31,7 @@ export const addNewPost = async (req, res) => {
       caption,
       image: cloudResponse.secure_url,
       author: authorId,
+      location,
     });
     const user = await User.findById(authorId);
     if (user) {
@@ -95,60 +96,33 @@ export const getUserPost = async (req, res) => {
 };
 
 //like
-// export const likePost = async (req, res) => {
-//   try {
-//     console.log("liked here");
-//     const likeUserId = req.body;
-//     const postId = req.params.id;
-//     const post = await Post.findById(postId);
-//     if (!post)
-//       return res.status(400).json({
-//         message: "posts not founds",
-//         success: false,
-//       });
-//     //like logic here
-//     await post.updateOne({ $addToSet: { likes: likeUserId } });
-//     await post.save();
-
-//     return res.status(200).json({
-//       message: "post liked",
-//       success: true,
-//     });
-//   } catch (error) {
-//     console.log(error);
-//   }
-// };
 
 export const likePost = async (req, res) => {
   try {
-    const { likeUserId } = req.body;
-
-    const { postId } = req.body;
-    console.log(req.body);
-    if (!likeUserId)
-      return res
-        .status(400)
-        .json({ message: "User ID required", success: false });
+    const likeUserId = req.id;
+    const postId = req.params.id;
     const post = await Post.findById(postId);
     if (!post)
-      return res
-        .status(404)
-        .json({ message: "Post not found", success: false });
-    if (post.likes.includes(likeUserId))
-      return res.status(400).json({ message: "Already liked", success: false });
+      return res.status(400).json({
+        message: "posts not founds",
+        success: false,
+      });
+    //like logic here
     await post.updateOne({ $addToSet: { likes: likeUserId } });
-    return res.status(200).json({ message: "Post liked", success: true });
+    await post.save();
+
+    return res.status(200).json({
+      message: "post liked",
+      success: true,
+    });
   } catch (error) {
-    console.error(error);
-    return res
-      .status(500)
-      .json({ message: "Internal server error", success: false });
+    console.log(error);
   }
 };
-//unliked post
+
 export const dislikePost = async (req, res) => {
   try {
-    const likeUserId = req.body;
+    const likeUserId = req.id;
     const postId = req.params.id;
     const post = await Post.findById(postId);
     if (!post)
@@ -159,15 +133,16 @@ export const dislikePost = async (req, res) => {
     //like logic here
     await post.updateOne({ $pull: { likes: likeUserId } });
     await post.save();
-    //socket
+
     return res.status(200).json({
-      message: "post liked",
+      message: "post unliked",
       success: true,
     });
   } catch (error) {
     console.log(error);
   }
 };
+
 //add comment
 export const addComment = async (req, res) => {
   try {
@@ -185,7 +160,12 @@ export const addComment = async (req, res) => {
       text,
       author: commentUserId,
       post: postId,
-    }).populate({ path: "author", select: "username  profilePicture" });
+    });
+    await comment.populate({
+      path: "author",
+      select: "username profilePicture",
+    });
+
     post.comments.push(comment._id);
     await post.save();
     return res.status(200).json({
